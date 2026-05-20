@@ -1,0 +1,8 @@
+[
+  "[neutral] This is a baseline sample for reference selection.",
+  "[calm] Please compare voice consistency, timing, and clarity.",
+  "[curious] Does this version sound natural across a question?",
+  "[confident] The system is ready for another evaluation pass.",
+  "[soft tone] A steady delivery helps reveal subtle artifacts.",
+  "[slightly excited] This phrase checks expressiveness without pushing too hard."
+]

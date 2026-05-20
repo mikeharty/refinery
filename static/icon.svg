@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Refinery">
+  <title>Refinery</title>
+  <defs>
+    <linearGradient id="rf-shell" x1="8" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9b6dff"/>
+      <stop offset="52%" stop-color="#5b8def"/>
+      <stop offset="100%" stop-color="#3dd6c8"/>
+    </linearGradient>
+    <linearGradient id="rf-body" x1="12" y1="5" x2="20" y2="27" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#17223a"/>
+      <stop offset="100%" stop-color="#08101f"/>
+    </linearGradient>
+    <linearGradient id="rf-meter" x1="22" y1="17" x2="28" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#101b31"/>
+      <stop offset="100%" stop-color="#070d18"/>
+    </linearGradient>
+    <linearGradient id="rf-line" x1="12" y1="10" x2="27" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c4b5ff"/>
+      <stop offset="55%" stop-color="#5b8def"/>
+      <stop offset="100%" stop-color="#3dd6c8"/>
+    </linearGradient>
+  </defs>
+
+  <path d="M11.2 26.6H27.2" fill="none" stroke="url(#rf-shell)" stroke-width="1.45" stroke-linecap="round" opacity="0.42"/>
+  <path d="M12.7 6.2H19.3L20.9 26.6H11.1Z" fill="url(#rf-body)" stroke="url(#rf-shell)" stroke-width="1.45" stroke-linejoin="round"/>
+  <path d="M11.7 4.7H20.3L19.35 6.7H12.65Z" fill="#0d1628" stroke="url(#rf-shell)" stroke-width="1.45" stroke-linejoin="round"/>
+  <path d="M13.15 10.9H18.85M12.9 14H19.1M12.65 17.1H19.35M12.4 20.2H19.6M12.15 23.3H19.85" fill="none" stroke="url(#rf-line)" stroke-width="1.05" stroke-linecap="round" opacity="0.86"/>
+  <path d="M20.15 13.4H24.3V17.2" fill="none" stroke="url(#rf-shell)" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M8.3 19.2H11.75" fill="none" stroke="url(#rf-shell)" stroke-width="1.25" stroke-linecap="round" opacity="0.78"/>
+  <rect x="22" y="17.2" width="5.6" height="8.9" rx="1.35" fill="url(#rf-meter)" stroke="url(#rf-shell)" stroke-width="1.25"/>
+  <path d="M23.75 23.5V20.8M24.95 23.5V19.1M26.15 23.5V21.4" fill="none" stroke="url(#rf-line)" stroke-width="0.95" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Python dependencies
+        run: uv sync --frozen
+
+      - name: Compile Python
+        run: uv run python -m py_compile app.py
+
+      - name: Check JavaScript syntax
+        run: node --check static/app.js
+
+      - name: Check shell scripts
+        run: bash -n scripts/install-fish-macos.sh scripts/start-fish-macos.sh scripts/uninstall-fish-macos.sh
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Validate Docker Compose config
+        run: |
+          docker compose config >/tmp/refinery-compose.yml
+          docker compose --profile fish config >/tmp/refinery-compose-fish.yml
+          docker compose --profile download config >/tmp/refinery-compose-download.yml

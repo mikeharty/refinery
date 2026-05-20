@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+title: "Refinery: iterative reference-clip refinement for voice cloning"
+message: "If you use Refinery in research, please cite this software."
+type: software
+authors:
+  - family-names: Harty
+    given-names: Mike
+repository-code: "https://github.com/mikeharty/refinery"
+url: "https://github.com/mikeharty/refinery"
+license: MIT
+version: 0.1.0
+date-released: 2026-05-20
+keywords:
+  - voice cloning
+  - text-to-speech
+  - reference audio
+  - fish audio
+  - fish-speech
+  - human-in-the-loop

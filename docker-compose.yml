@@ -1,0 +1,55 @@
+services:
+  refinery:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:${REFINERY_PORT:-5055}:5055"
+    environment:
+      REFERENCE_ROOT: /app/refs
+      FISH_TTS_URL: ${REFINERY_FISH_TTS_URL:-http://fish-speech:8080/v1/tts}
+      FISH_API_KEY: ${FISH_API_KEY:-}
+      FISH_MODEL: ${FISH_MODEL:-s2-pro}
+      FISH_TTS_TIMEOUT_SECONDS: ${FISH_TTS_TIMEOUT_SECONDS:-0}
+      FISH_CONNECT_TIMEOUT_SECONDS: ${FISH_CONNECT_TIMEOUT_SECONDS:-10}
+      MAX_TTS_CACHE_ITEMS: ${MAX_TTS_CACHE_ITEMS:-256}
+      PORT: 5055
+    volumes:
+      - ./refs:/app/refs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  fish-speech:
+    image: ${FISH_SPEECH_IMAGE:-fishaudio/fish-speech:latest}
+    profiles: ["fish"]
+    ports:
+      - "127.0.0.1:${FISH_SPEECH_PORT:-8080}:8080"
+    volumes:
+      - ${FISH_SPEECH_CHECKPOINTS:-./fish-checkpoints}:/app/checkpoints
+      - ${FISH_SPEECH_REFERENCES:-./fish-references}:/app/references
+    command: >
+      bash -lc "python tools/api_server.py
+      --llama-checkpoint-path /app/checkpoints/${FISH_SPEECH_CHECKPOINT:-s2-pro}
+      --decoder-checkpoint-path /app/checkpoints/${FISH_SPEECH_CHECKPOINT:-s2-pro}/codec.pth
+      --listen 0.0.0.0:8080
+      ${FISH_SPEECH_EXTRA_ARGS:-}"
+    gpus: all
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/v1/health', timeout=2)\"",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
+
+  fish-models:
+    image: python:3.12-slim
+    profiles: ["download"]
+    working_dir: /work
+    volumes:
+      - ${FISH_SPEECH_CHECKPOINTS:-./fish-checkpoints}:/checkpoints
+    command: >
+      bash -lc "pip install --no-cache-dir huggingface_hub
+      && hf download fishaudio/s2-pro --local-dir /checkpoints/s2-pro"

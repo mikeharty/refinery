@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest an improvement to Refinery.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What workflow would this improve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you want.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Reference selection
+        - UI/listening workflow
+        - Fish Audio/Fish-Speech settings
+        - Docker/local install
+        - Documentation
+        - Other
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional, but useful for ranking algorithm and UX changes.

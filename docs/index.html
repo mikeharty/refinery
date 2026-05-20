@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Refinery — reference clip picker for Fish Audio voice cloning</title>
+<meta name="description" content="Refinery is an open-source utility for picking the best reference clips to use with Fish Audio and Fish-Speech voice cloning. Iterative, local-first, MIT-licensed." />
+<link rel="icon" type="image/svg+xml" href="https://raw.githubusercontent.com/mikeharty/refinery/main/static/icon.svg" />
+<meta property="og:title" content="Refinery — reference clip picker for Fish Audio voice cloning" />
+<meta property="og:description" content="Generates candidate reference combinations, lets you mark the ones that sound right, biases the next round toward them. Local-first, MIT." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://mikeharty.com/refinery/" />
+<meta name="twitter:card" content="summary_large_image" />
+<style>
+  :root {
+    --bg: #0b0d13;
+    --bg-elev: #11141c;
+    --bg-card: #161a24;
+    --border: #232838;
+    --text: #e6e7ec;
+    --text-dim: #9aa0b0;
+    --violet: #9b6dff;
+    --blue: #5b8def;
+    --teal: #3dd6c8;
+    --grad: linear-gradient(135deg, #9b6dff 0%, #5b8def 50%, #3dd6c8 100%);
+    --grad-soft: linear-gradient(135deg, rgba(155, 109, 255, 0.18), rgba(91, 141, 239, 0.15), rgba(61, 214, 200, 0.16));
+    --mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--teal); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  h1, h2, h3 { letter-spacing: -0.01em; line-height: 1.2; margin: 0 0 0.4em; }
+  h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 700; }
+  h2 { font-size: clamp(1.6rem, 3vw, 2rem); font-weight: 600; margin-top: 0; }
+  h3 { font-size: 1.15rem; font-weight: 600; }
+  p { color: var(--text-dim); margin: 0 0 1em; }
+  code { font-family: var(--mono); background: rgba(255,255,255,0.06); padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.92em; color: #d6d8e1; }
+  pre { background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-family: var(--mono); font-size: 0.88rem; line-height: 1.55; color: #d6d8e1; }
+  pre code { background: none; padding: 0; }
+  .container { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+
+  /* Nav */
+  nav.top { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); background: rgba(11,13,19,0.7); border-bottom: 1px solid var(--border); }
+  nav.top .container { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  nav.top .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; color: var(--text); }
+  nav.top .brand svg { height: 28px; width: auto; }
+  nav.top .links { display: flex; gap: 22px; font-size: 0.93rem; }
+  nav.top .links a { color: var(--text-dim); }
+  nav.top .links a:hover { color: var(--text); text-decoration: none; }
+
+  /* Hero */
+  .hero { padding: 88px 0 64px; text-align: center; position: relative; overflow: hidden; }
+  .hero::before {
+    content: ""; position: absolute; inset: -120px 0 auto 0; height: 480px; pointer-events: none;
+    background: radial-gradient(60% 70% at 50% 0%, rgba(91, 141, 239, 0.18), rgba(155, 109, 255, 0.10) 45%, transparent 70%);
+    z-index: 0;
+  }
+  .hero > * { position: relative; z-index: 1; }
+  .hero .eyebrow { display: inline-block; font-family: var(--mono); font-size: 0.78rem; color: var(--text-dim); letter-spacing: 0.08em; text-transform: uppercase; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; margin-bottom: 22px; }
+  .hero h1 { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; max-width: 18ch; margin-left: auto; margin-right: auto; }
+  .hero .sub { font-size: 1.18rem; color: var(--text); opacity: 0.9; max-width: 60ch; margin: 0 auto 30px; }
+  .cta { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 0.97rem; transition: transform .12s ease, box-shadow .12s ease; }
+  .btn-primary { background: var(--grad); color: #0a0c12; box-shadow: 0 6px 24px rgba(91,141,239,0.30); }
+  .btn-primary:hover { transform: translateY(-1px); text-decoration: none; }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--text-dim); text-decoration: none; }
+
+  /* Sections */
+  section { padding: 64px 0; border-top: 1px solid var(--border); }
+  section.no-border { border-top: none; }
+  .lede { font-size: 1.08rem; max-width: 68ch; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 720px) { .grid-2 { grid-template-columns: 1fr; } }
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; }
+  .card h3 { margin-top: 0; color: var(--text); }
+  .card p:last-child { margin-bottom: 0; }
+  .pill { display: inline-block; font-family: var(--mono); font-size: 0.74rem; padding: 3px 8px; background: var(--grad-soft); border: 1px solid var(--border); border-radius: 999px; color: var(--text); margin-right: 6px; }
+
+  /* Loop diagram */
+  .loop {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 28px;
+    counter-reset: step;
+  }
+  @media (max-width: 720px) { .loop { grid-template-columns: 1fr 1fr; } }
+  .loop .step {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    position: relative; min-height: 110px;
+  }
+  .loop .step::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; top: -10px; left: 14px;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--grad);
+    color: #0a0c12; font-weight: 700; font-size: 0.78rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .loop .step h4 { margin: 4px 0 6px; font-size: 0.95rem; color: var(--text); }
+  .loop .step p { margin: 0; font-size: 0.88rem; }
+
+  /* Audio block */
+  .audio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 22px; }
+  @media (max-width: 720px) { .audio-grid { grid-template-columns: 1fr; } }
+  .audio-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .audio-card .label { font-family: var(--mono); font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+  .audio-card .label.refined { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; }
+  .audio-card audio { width: 100%; margin-top: 10px; }
+  .audio-card p { font-size: 0.9rem; margin: 8px 0 0; }
+  .audio-meta { font-size: 0.85rem; color: var(--text-dim); margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
+
+  /* Quickstart */
+  .qs-tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .qs-tab { padding: 7px 13px; border-radius: 8px; font-size: 0.88rem; font-family: var(--mono); background: var(--bg-card); border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; }
+  .qs-tab.active { color: var(--text); border-color: var(--blue); background: rgba(91,141,239,0.10); }
+  .qs-panel { display: none; }
+  .qs-panel.active { display: block; }
+
+  /* Footer */
+  footer { padding: 40px 0 60px; color: var(--text-dim); font-size: 0.9rem; text-align: center; border-top: 1px solid var(--border); }
+  footer a { color: var(--text-dim); }
+  footer a:hover { color: var(--text); }
+
+  /* Icon (GitHub) */
+  .icon { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="container">
+    <a class="brand" href="#top" aria-label="Refinery">
+      <!-- inline icon -->
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <defs>
+          <linearGradient id="nv-grad" x1="0" y1="0" x2="0.5" y2="1">
+            <stop offset="0%" stop-color="#9b6dff"/><stop offset="50%" stop-color="#5b8def"/><stop offset="100%" stop-color="#3dd6c8"/>
+          </linearGradient>
+          <clipPath id="nv-clip"><path d="M12.5 5 L12.5 11 L7.5 22 C6.8 23.5 8 25 9.8 25 L22.2 25 C24 25 25.2 23.5 24.5 22 L19.5 11 L19.5 5 Z"/></clipPath>
+        </defs>
+        <path d="M12.5 5 L12.5 11 L7.5 22 C6.8 23.5 8 25 9.8 25 L22.2 25 C24 25 25.2 23.5 24.5 22 L19.5 11 L19.5 5" fill="none" stroke="url(#nv-grad)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="11" y1="5" x2="21" y2="5" stroke="url(#nv-grad)" stroke-width="1.8" stroke-linecap="round"/>
+        <g clip-path="url(#nv-clip)">
+          <path d="M7 20 L8.5 20 L9.5 18 L10.5 21.5 L11.5 16.5 L12.5 22 L13.5 17 L14.5 21.5 L16 15.5 L17 21.5 L18 17 L19 22 L20 16.5 L21 21.5 L22 18 L23 20 L25 20" fill="none" stroke="url(#nv-grad)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+        </g>
+      </svg>
+      Refinery
+    </a>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#listen">Listen</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="https://github.com/mikeharty/refinery">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<a id="top"></a>
+<header class="hero">
+  <div class="container">
+    <span class="eyebrow">Open-source · MIT · Self-hosted</span>
+    <h1>A reference clip picker for voice cloning.</h1>
+    <p class="sub">Refinery generates candidate combinations of reference audio for <a href="https://fish.audio/">Fish Audio</a> and <a href="https://github.com/fishaudio/fish-speech">Fish-Speech</a>, renders them against the same phrase, and lets you mark the ones that sound right. Each round of refinement biases the next toward what you picked.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/mikeharty/refinery">
+        <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.16c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.69 1.25 3.34.95.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.79 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.8.55 4.56-1.53 7.85-5.83 7.85-10.91C23.5 5.65 18.35.5 12 .5Z"/></svg>
+        View on GitHub
+      </a>
+      <a class="btn btn-ghost" href="#how">How it works</a>
+    </div>
+  </div>
+</header>
+
+<section id="how" class="no-border">
+  <div class="container">
+    <h2>Why</h2>
+    <p class="lede">Voice cloning with Fish Audio and Fish-Speech is sensitive to which reference clips you condition on. Two different 3-of-5 picks from the same speaker can produce noticeably different output. Without structure, picking the best combination is an open-ended listening session.</p>
+    <p class="lede">Refinery wraps that listening session in a loop. Render candidates against the same phrase, mark the ones that sound right, run another round biased toward refs from your favorites. Two or three passes usually converge.</p>
+
+    <div class="loop" aria-label="Refinement loop">
+      <div class="step">
+        <h4>Random K-of-N</h4>
+        <p>Sample candidate ref combinations from your folder.</p>
+      </div>
+      <div class="step">
+        <h4>Render variants</h4>
+        <p>Generate each variant against the same test phrases (and optional S2 style tags).</p>
+      </div>
+      <div class="step">
+        <h4>Listen and mark</h4>
+        <p>Compare variants side-by-side. Mark the ones that sound right.</p>
+      </div>
+      <div class="step">
+        <h4>Refine</h4>
+        <p>Next round gives favorited refs 2&times; weight; at least half the new variants inherit a favorite.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="listen">
+  <div class="container">
+    <h2>Listen</h2>
+    <p class="lede">Same speaker (public-domain LJSpeech), same phrase, same model. Only the reference combination differs between rounds. Round 1 is a random pick; round 3 is what Refinery converged on after two refinement passes.</p>
+
+    <div class="audio-grid">
+      <div class="audio-card">
+        <span class="label">Round 1 · naive pick</span>
+        <audio controls preload="none" src="samples/round1.wav">Your browser does not support the audio element. <a href="samples/round1.wav">Download the sample</a>.</audio>
+        <p>K=3 of 5 references, chosen uniformly at random.</p>
+      </div>
+      <div class="audio-card">
+        <span class="label refined">Round 3 · refined</span>
+        <audio controls preload="none" src="samples/round3.wav">Your browser does not support the audio element. <a href="samples/round3.wav">Download the sample</a>.</audio>
+        <p>K=3 of 5 references, after two favorite-weighted refinement rounds.</p>
+      </div>
+    </div>
+
+    <p class="audio-meta">Rendered with Fish Audio's <code>s2-pro</code> model on the bundled LJSpeech sample voice. The full recipe is reproducible from the JSON export Refinery generates. <a href="https://github.com/mikeharty/refinery#refinement-process">Read the refinement algorithm</a>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>What it does</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Workflow</h3>
+        <p><span class="pill">core</span> Random K-of-N reference search, favorite-weighted refinement, side-by-side audio comparison, customizable test phrases, bracket-style S2 prompt matrix.</p>
+      </div>
+      <div class="card">
+        <h3>TTS controls</h3>
+        <p><span class="pill">advanced</span> Model, latency, sampling, prosody, chunking, and long-form generation parameters exposed in the UI. Sensible defaults; tune when needed.</p>
+      </div>
+      <div class="card">
+        <h3>Local-first</h3>
+        <p><span class="pill">privacy</span> Run against hosted Fish Audio, Docker Compose Fish-Speech (NVIDIA CUDA), or native macOS Fish-Speech on Apple Silicon (MPS). Your refs never leave your machine unless you point it at the hosted API yourself.</p>
+      </div>
+      <div class="card">
+        <h3>Reproducible</h3>
+        <p><span class="pill">utility</span> JSON recipe export, in-memory TTS cache to keep paid endpoints cheap, batch <code>.lab</code> transcription script for ref folders you haven't transcribed yet.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="container">
+    <h2>Quickstart</h2>
+    <p class="lede">Python 3.11+ with <a href="https://docs.astral.sh/uv/">uv</a>, plus a Fish Audio API key or a Fish-Speech server. Pick a path.</p>
+
+    <div class="qs-tabs" role="tablist">
+      <button class="qs-tab active" data-tab="hosted">Hosted Fish Audio</button>
+      <button class="qs-tab" data-tab="macos">Native macOS</button>
+      <button class="qs-tab" data-tab="docker">Docker Compose</button>
+    </div>
+
+    <div class="qs-panel active" data-tab="hosted">
+<pre><code>git clone https://github.com/mikeharty/refinery.git
+cd refinery
+cp .env.example .env
+
+# In .env:
+# FISH_TTS_URL=https://api.fish.audio/v1/tts
+# FISH_API_KEY=your_api_key_here
+# FISH_MODEL=s2-pro
+
+uv sync
+uv run uvicorn app:app --host 0.0.0.0 --port 5055 --reload
+# Open http://localhost:5055
+</code></pre>
+    </div>
+
+    <div class="qs-panel" data-tab="macos">
+<pre><code>git clone https://github.com/mikeharty/refinery.git
+cd refinery
+cp .env.example .env
+
+# Install + start Fish-Speech project-locally (Apple Silicon, MPS)
+scripts/install-fish-macos.sh --install-brew-deps
+scripts/start-fish-macos.sh &amp;
+
+uv sync
+uv run uvicorn app:app --host 0.0.0.0 --port 5055 --reload
+# Open http://localhost:5055
+</code></pre>
+    </div>
+
+    <div class="qs-panel" data-tab="docker">
+<pre><code>git clone https://github.com/mikeharty/refinery.git
+cd refinery
+cp .env.example .env
+
+# Linux/WSL with an NVIDIA CUDA GPU (24GB+ VRAM recommended for S2-Pro)
+docker compose --profile download run --rm fish-models
+docker compose --profile fish up --build
+# Open http://localhost:5055
+</code></pre>
+    </div>
+
+    <p style="margin-top: 22px;">Full configuration reference, including all <code>FISH_*</code> environment variables and the Apple Silicon installer flags, lives in the <a href="https://github.com/mikeharty/refinery#configuration">README</a>.</p>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>Contribute</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Use it</h3>
+        <p>The bundled LJSpeech voice is the easiest first-run demo. The real payoff is on voices you've recorded yourself — drop your refs into a folder and point Refinery at it.</p>
+        <p><a href="https://github.com/mikeharty/refinery#reference-audio">How to add your own refs →</a></p>
+      </div>
+      <div class="card">
+        <h3>Contribute</h3>
+        <p>Small, focused PRs welcome. Ranking algorithm changes, UI polish, additional backends, and docs improvements are all in scope.</p>
+        <p><a href="https://github.com/mikeharty/refinery/blob/main/CONTRIBUTING.md">Read CONTRIBUTING →</a></p>
+      </div>
+      <div class="card">
+        <h3>Report a bug</h3>
+        <p>Use the issue templates. Don't attach private voice samples or API keys — a minimal public-domain repro is preferred.</p>
+        <p><a href="https://github.com/mikeharty/refinery/issues/new/choose">Open an issue →</a></p>
+      </div>
+      <div class="card">
+        <h3>Ethics &amp; consent</h3>
+        <p>Refinery is for voices you have permission to clone. The bundled refs are public-domain LJSpeech; everything else is your responsibility.</p>
+        <p><a href="https://github.com/mikeharty/refinery/blob/main/CONTRIBUTING.md#voice-reference-policy">Voice reference policy →</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>MIT-licensed. Built on top of <a href="https://fish.audio/">Fish Audio</a> and <a href="https://github.com/fishaudio/fish-speech">Fish-Speech</a>. Refinery is an independent project and is not affiliated with Fish Audio.</p>
+    <p><a href="https://github.com/mikeharty/refinery">github.com/mikeharty/refinery</a></p>
+  </div>
+</footer>
+
+<script>
+  // Simple tab handling for the quickstart
+  document.querySelectorAll('.qs-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      var target = tab.getAttribute('data-tab');
+      document.querySelectorAll('.qs-tab').forEach(function (t) { t.classList.toggle('active', t === tab); });
+      document.querySelectorAll('.qs-panel').forEach(function (p) {
+        p.classList.toggle('active', p.getAttribute('data-tab') === target);
+      });
+    });
+  });
+</script>
+</body>
+</html>

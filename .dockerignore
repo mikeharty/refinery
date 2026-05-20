@@ -1,0 +1,29 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.py[cod]
+.DS_Store
+.env
+.env.*
+!.env.example
+.pytest_cache
+.ruff_cache
+.mypy_cache
+dist
+build
+*.egg-info
+
+# Private/local voice material. The bundled public-domain LJSpeech samples are
+# intentionally allowed into the image for first-run demos.
+refs/**/*.wav
+refs/**/*.mp3
+refs/**/*.flac
+refs/**/*.m4a
+refs/**/*.ogg
+refs/**/*.lab
+!refs/ljspeech_linda_johnson/*.wav
+!refs/ljspeech_linda_johnson/*.lab
+
+fish-checkpoints
+fish-references

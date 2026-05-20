@@ -1,0 +1,7 @@
+# GitHub Pages serves the docs/ folder as a static site.
+# We ship plain HTML, so we disable Jekyll processing to avoid surprises.
+# (An empty .nojekyll file in docs/ has the same effect; we keep both for clarity.)
+theme: null
+plugins: []
+include:
+  - .nojekyll

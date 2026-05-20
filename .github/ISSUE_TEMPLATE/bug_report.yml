@@ -1,0 +1,47 @@
+name: Bug report
+description: Report a reproducible problem with Refinery.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Please do not attach private voice samples, API keys, or paid endpoint logs.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Run ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: dropdown
+    id: fish-mode
+    attributes:
+      label: Fish backend
+      options:
+        - Hosted Fish Audio API
+        - Native macOS Fish-Speech
+        - Docker Compose Fish-Speech
+        - Other local Fish-Speech
+        - Not sure
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "macOS 15, Ubuntu 24.04, Windows/WSL, Docker Desktop version, GPU if relevant"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove secrets and private transcript text before pasting.
+      render: shell

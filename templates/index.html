@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Refinery</title>
+        <link rel="icon" href="/static/icon.svg?v=cell" type="image/svg+xml" />
+        <link rel="stylesheet" href="/static/style.css" />
+    </head>
+    <body>
+        <div class="app">
+            <header class="topbar">
+                <div class="topbar-brand">
+                    <img src="/static/logo.svg?v=cell" alt="Refinery" class="brand-logo" />
+                    <span id="fish-dot" class="fish-dot" data-state="checking" title="Checking Fish-Speech…" aria-label="Fish-Speech status"></span>
+                </div>
+
+                {% if voices %}
+                <div class="topbar-context">
+                    <label class="topbar-field">
+                        <span class="topbar-label">Reference set</span>
+                        <select id="voice">
+                            {% for name, refs in voices.items() %}
+                            <option value="{{ name }}">{{ name }} ({{ refs|length }})</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <div class="round-info" id="round-info" aria-live="polite">
+                        <span class="round-label">No round yet</span>
+                    </div>
+                </div>
+
+                <div class="topbar-cost">
+                    <span class="cost-label">Per run</span>
+                    <span class="cost-value" id="render-estimate">0 renders</span>
+                </div>
+
+                <div class="topbar-actions">
+                    <button id="generate" class="btn btn-primary" title="Generate (G)">
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <polygon points="5 3 19 12 5 21 5 3" />
+                        </svg>
+                        <span>Generate</span>
+                    </button>
+                    <button id="refine" class="btn btn-outline" title="Refine from ratings (R)" disabled>
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M23 4v6h-6" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        <span>Refine</span>
+                    </button>
+                    <button id="save-winner" class="btn btn-ghost" title="Copy winning recipe (S)" disabled>
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>Save winner</span>
+                    </button>
+                    <a
+                        class="iconbtn"
+                        href="https://github.com/mikeharty/refinery#readme"
+                        target="_blank"
+                        rel="noopener"
+                        title="Documentation"
+                        aria-label="Documentation"
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                        </svg>
+                    </a>
+                    <a
+                        class="iconbtn"
+                        href="https://github.com/mikeharty/refinery"
+                        target="_blank"
+                        rel="noopener"
+                        title="GitHub repository"
+                        aria-label="GitHub repository"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-2.08c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18.92-.26 1.91-.39 2.89-.39.98 0 1.97.13 2.89.39 2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.66.79.55C20.21 21.38 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"
+                            />
+                        </svg>
+                    </a>
+                </div>
+                {% endif %}
+            </header>
+
+            {% if not voices %}
+            <main class="empty-state">
+                <div class="empty-card">
+                    <img src="/static/icon.svg?v=cell" alt="" class="empty-logo" />
+                    <h2>No reference audio found</h2>
+                    <p>Drop voice or mood folders containing paired <code>.wav</code> and <code>.lab</code> files into the <code>refs/</code> directory.</p>
+                    <p>Any nested folder with direct pairs is a reference set. See the README for the expected layout.</p>
+                </div>
+            </main>
+            {% else %}
+            <div class="workbench">
+                <aside class="leftrail">
+                    <section class="rail-section">
+                        <header class="rail-header">
+                            <h3>Run</h3>
+                            <span class="rail-meta" id="pool-info">— refs available</span>
+                        </header>
+                        <div class="rail-grid">
+                            <label class="rail-field">
+                                <span>Refs / variant</span>
+                                <div class="range-row">
+                                    <input type="range" id="n_refs" min="1" max="{{ max_refs }}" value="3" />
+                                    <output id="n_refs_val">3</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Variants</span>
+                                <div class="range-row">
+                                    <input type="range" id="limit" min="1" max="12" value="6" />
+                                    <output id="limit_val">6</output>
+                                </div>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="rail-section generation-section">
+                        <header class="rail-header">
+                            <h3>Generation</h3>
+                            <div class="rail-header-actions">
+                                <span class="rail-meta">model settings</span>
+                                <button id="reset-settings" class="iconbtn small" title="Reset model settings" aria-label="Reset model settings">
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M3 12a9 9 0 1 0 3-6.7" />
+                                        <path d="M3 4v6h6" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </header>
+                        <div class="rail-grid rail-grid-tight">
+                            <label class="rail-field rail-field-wide">
+                                <span>Preset</span>
+                                <select id="model-preset">
+                                    <option value="default">Default</option>
+                                    <option value="cartoon">Cartoon / character</option>
+                                    <option value="speech">Speech / narration</option>
+                                    <option value="singing">Singing / melodic</option>
+                                    <option value="custom" hidden>Custom</option>
+                                </select>
+                            </label>
+                            <label class="rail-field">
+                                <span>Model</span>
+                                <select id="model">
+                                    <option value="s2-pro">s2-pro</option>
+                                    <option value="s1">s1</option>
+                                </select>
+                            </label>
+                            <label class="rail-field">
+                                <span>Latency</span>
+                                <select id="latency">
+                                    <option value="normal">normal</option>
+                                    <option value="balanced">balanced</option>
+                                    <option value="low">low</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="rail-settings-grid">
+                            <label class="rail-field">
+                                <span>Temperature</span>
+                                <div class="range-row">
+                                    <input type="range" id="temperature" min="0" max="1" step="0.05" value="0.7" />
+                                    <output id="temperature_val">0.70</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Top P</span>
+                                <div class="range-row">
+                                    <input type="range" id="top_p" min="0" max="1" step="0.05" value="0.7" />
+                                    <output id="top_p_val">0.70</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Repetition penalty</span>
+                                <div class="range-row">
+                                    <input type="range" id="repetition_penalty" min="1" max="2" step="0.05" value="1.2" />
+                                    <output id="repetition_penalty_val">1.20</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Speed</span>
+                                <div class="range-row">
+                                    <input type="range" id="speed" min="0.5" max="2" step="0.05" value="1" />
+                                    <output id="speed_val">1.00</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Volume (dB)</span>
+                                <div class="range-row">
+                                    <input type="range" id="volume" min="-12" max="12" step="1" value="0" />
+                                    <output id="volume_val">0</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Chunk length</span>
+                                <div class="range-row">
+                                    <input type="range" id="chunk_length" min="100" max="300" step="25" value="300" />
+                                    <output id="chunk_length_val">300</output>
+                                </div>
+                            </label>
+                            <label class="rail-field">
+                                <span>Max new tokens</span>
+                                <div class="range-row">
+                                    <input type="range" id="max_new_tokens" min="256" max="2048" step="128" value="1024" />
+                                    <output id="max_new_tokens_val">1024</output>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="rail-checks">
+                            <label class="check-row compact">
+                                <input type="checkbox" id="normalize" checked />
+                                <span>Normalize text</span>
+                            </label>
+                            <label class="check-row compact">
+                                <input type="checkbox" id="condition_on_previous_chunks" checked />
+                                <span>Condition on previous chunks</span>
+                            </label>
+                            <label class="check-row compact">
+                                <input type="checkbox" id="normalize_loudness" checked />
+                                <span>Normalize loudness</span>
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="rail-section">
+                        <header class="rail-header">
+                            <h3>Test phrases</h3>
+                            <div class="rail-header-actions">
+                                <button id="reset-texts" class="iconbtn small" title="Reset phrases" aria-label="Reset phrases">
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M3 12a9 9 0 1 0 3-6.7" />
+                                        <path d="M3 4v6h6" />
+                                    </svg>
+                                </button>
+                                <button id="add-text" class="iconbtn small" title="Add phrase" aria-label="Add phrase">
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </header>
+                        <div id="texts-container" class="rail-list"></div>
+                        <p class="rail-hint">Leading tags like <code>[calm]</code> become labels only; Refinery strips them before TTS.</p>
+                    </section>
+
+                    <section class="rail-section">
+                        <header class="rail-header">
+                            <h3>Style matrix <span class="rail-tag">optional</span></h3>
+                            <div class="rail-header-actions">
+                                <button id="style-preset" class="iconbtn small" title="Load S2 presets" aria-label="Load S2 presets">
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M3 6h18M3 12h18M3 18h18" />
+                                    </svg>
+                                </button>
+                                <button id="add-style" class="iconbtn small" title="Add style" aria-label="Add style">
+                                    <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M12 5v14M5 12h14" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </header>
+                        <div id="styles-container" class="rail-list"></div>
+                        <p class="rail-hint">Style entries are sent into the TTS text; leave one blank for a clean baseline pass.</p>
+                    </section>
+
+                    <details class="rail-section rail-disclosure ref-pool-section">
+                        <summary class="rail-summary">
+                            <span class="rail-summary-title">Reference pool</span>
+                            <span class="rail-meta" id="leaderboard-summary">no ratings</span>
+                        </summary>
+                        <div class="rail-disclosure-body">
+                            <div class="ref-pool-tools">
+                                <input id="ref-filter" class="ref-filter" type="search" placeholder="Filter refs" autocomplete="off" spellcheck="false" />
+                                <button id="ref-pool-toggle" class="btn btn-ghost ref-pool-toggle" type="button" hidden>Show all</button>
+                            </div>
+                            <div id="ref-pool-summary" class="ref-pool-summary"></div>
+                            <div id="ref-pool" class="ref-pool"></div>
+                            <p class="rail-hint">
+                                Click a ref to preview it. <kbd>Shift</kbd>-click or right-click to pin; <kbd>Alt</kbd>-click to exclude.
+                            </p>
+                        </div>
+                    </details>
+                </aside>
+
+                <main class="canvas">
+                    <section id="fish-setup" class="setup-card" hidden></section>
+                    <header class="canvas-header" id="canvas-header" hidden>
+                        <div class="view-toggle" role="tablist" aria-label="Group results by">
+                            <button class="view-opt active" data-view="variant" role="tab" aria-selected="true">By variant</button>
+                            <button class="view-opt" data-view="phrase" role="tab" aria-selected="false">By phrase</button>
+                            <button class="view-opt" data-view="style" role="tab" aria-selected="false">By style</button>
+                        </div>
+                        <div class="canvas-run-state">
+                            <div id="canvas-status" class="canvas-status" role="status" aria-live="polite"></div>
+                            <button id="stop-all" class="btn btn-outline btn-stop" type="button" hidden disabled>Stop all</button>
+                        </div>
+                    </header>
+                    <div id="canvas-status-bare" class="canvas-status" role="status" aria-live="polite"></div>
+                    <div id="variants" class="variants"></div>
+                    <aside id="history-strip" class="history-strip" hidden></aside>
+                </main>
+            </div>
+            {% endif %}
+        </div>
+
+        <template id="variant-tpl">
+            <article class="variant" tabindex="0">
+                <header class="variant-head">
+                    <div class="variant-id">
+                        <span class="variant-num"></span>
+                        <span class="variant-score-pill" title="Aggregate cell score">0</span>
+                    </div>
+                    <div class="variant-refs"></div>
+                    <div class="variant-actions">
+                        <button class="iconbtn small variant-copy" title="Copy recipe" aria-label="Copy recipe">
+                            <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <rect x="9" y="9" width="13" height="13" rx="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                        </button>
+                    </div>
+                </header>
+                <div class="variant-cells"></div>
+            </article>
+        </template>
+
+        <template id="cell-tpl">
+            <div class="cell" tabindex="0">
+                <div class="cell-meta">
+                    <span class="cell-style"></span>
+                    <span class="cell-text"></span>
+                </div>
+                <div class="cell-player">
+                    <button class="player-play" type="button" disabled aria-label="Play">
+                        <svg class="icon-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                        <svg class="icon-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+                        </svg>
+                    </button>
+                    <div class="player-waveform"></div>
+                    <span class="player-time">0:00</span>
+                    <span class="cell-status">queued</span>
+                </div>
+                <div class="cell-rating" role="radiogroup" aria-label="Rate this sample">
+                    <button class="rate rate-bad" data-rate="-1" title="Bad (3)" aria-label="Rate bad">
+                        <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path
+                                d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zM17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"
+                            />
+                        </svg>
+                    </button>
+                    <button class="rate rate-neutral" data-rate="0" title="Clear (2)" aria-label="Clear rating">
+                        <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <circle cx="12" cy="12" r="2.5" />
+                        </svg>
+                    </button>
+                    <button class="rate rate-good" data-rate="1" title="Great (1)" aria-label="Rate great">
+                        <svg
+                            width="13"
+                            height="13"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        >
+                            <path
+                                d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"
+                            />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <script src="/static/wavesurfer.min.js"></script>
+        <script>
+            window.BOOT = {
+              voices: {{ voices.keys()|list|tojson }},
+              voiceRefs: {{ voice_refs|tojson }},
+              maxRefs: {{ max_refs }},
+              maxVariants: {{ max_variants }},
+              textsData: {{ texts_data|tojson }},
+              defaultSettings: {{ default_tts_settings|tojson }},
+            };
+        </script>
+        <script src="/static/app.js"></script>
+    </body>
+</html>

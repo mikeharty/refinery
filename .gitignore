@@ -26,6 +26,7 @@ fish-references/
 
 # Project-local native Fish-Speech install.
 .local/
+node_modules/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

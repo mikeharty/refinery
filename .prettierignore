@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+.local/
+output/
+refs/**/*.wav
+refs/**/*.lab
+templates/**/*.html
+static/wavesurfer.min.js

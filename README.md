@@ -42,18 +42,17 @@ cp .env.example .env
 
 ## Configuration
 
-| Variable                       | Default                          | Used by         | Notes                                               |
-| ------------------------------ | -------------------------------- | --------------- | --------------------------------------------------- |
-| `REFERENCE_ROOT`               | `./refs`                         | Native Refinery | Reference-set root                                  |
-| `FISH_TTS_URL`                 | `http://127.0.0.1:8080/v1/tts`   | Native Refinery | Fish-Speech or hosted Fish Audio endpoint           |
-| `REFINERY_FISH_TTS_URL`        | `http://fish-speech:8080/v1/tts` | Docker Refinery | Use `host.docker.internal` for host-run Fish-Speech |
-| `FISH_API_KEY`                 | unset                            | Both            | Optional bearer token                               |
-| `FISH_MODEL`                   | `s2-pro`                         | Both            | Model header sent with TTS requests                 |
-| `FISH_TTS_TIMEOUT_SECONDS`     | `0`                              | Both            | Generation/read timeout; `0` waits indefinitely     |
-| `FISH_CONNECT_TIMEOUT_SECONDS` | `10`                             | Both            | Connect timeout for unreachable Fish endpoints      |
-| `MAX_TTS_CACHE_ITEMS`          | `256`                            | Both            | Set `0` to disable in-memory audio cache            |
-| `PORT`                         | `5055`                           | Native Refinery | Web UI port for `python app.py`                     |
-| `REFINERY_PORT`                | `5055`                           | Docker Refinery | Host port mapped to container port `5055`           |
+| Variable                       | Default                          | Used by         | Notes                                            |
+| ------------------------------ | -------------------------------- | --------------- | ------------------------------------------------ |
+| `REFERENCE_ROOT`               | `./refs`                         | Native Refinery | Reference-set root                               |
+| `FISH_TTS_URL`                 | `http://fish-speech:8080/v1/tts` | Both            | TTS endpoint used by both native and Docker runs |
+| `FISH_API_KEY`                 | unset                            | Both            | Optional bearer token                            |
+| `FISH_MODEL`                   | `s2-pro`                         | Both            | Model header sent with TTS requests              |
+| `FISH_TTS_TIMEOUT_SECONDS`     | `0`                              | Both            | Generation/read timeout; `0` waits indefinitely  |
+| `FISH_CONNECT_TIMEOUT_SECONDS` | `10`                             | Both            | Connect timeout for unreachable Fish endpoints   |
+| `MAX_TTS_CACHE_ITEMS`          | `256`                            | Both            | Set `0` to disable in-memory audio cache         |
+| `PORT`                         | `5055`                           | Native Refinery | Web UI port for `python app.py`                  |
+| `REFINERY_PORT`                | `5055`                           | Docker Refinery | Host port mapped to container port `5055`        |
 
 See [.env.example](.env.example) for more options and details.
 
@@ -69,16 +68,13 @@ You can choose between hosted Fish Audio or self-hosted Fish-Speech. The latter 
 
 ### Hosted Fish Audio
 
-Set both URLs if you may run Refinery either natively or in Docker:
+Set `FISH_TTS_URL` to one of the endpoints above, or a custom endpoint if you have a different setup. If you use the hosted API, set `FISH_API_KEY` to your API key and optionally configure `FISH_MODEL` if you want a different model than the default `s2-pro`.:
 
 ```bash
 FISH_TTS_URL=https://api.fish.audio/v1/tts
-REFINERY_FISH_TTS_URL=https://api.fish.audio/v1/tts
 FISH_API_KEY=your_api_key_here
 FISH_MODEL=s2-pro
 ```
-
-`FISH_TTS_URL` is used by native Python runs. `REFINERY_FISH_TTS_URL` is used by the Refinery container.
 
 ### Docker Fish-Speech
 
@@ -99,7 +95,7 @@ To run only Fish-Speech in Docker and run Refinery natively:
 docker compose --profile fish up fish-speech
 ```
 
-Keep the native endpoint in `.env`:
+If Fish-Speech is running on your Mac, keep this in `.env`:
 
 ```bash
 FISH_TTS_URL=http://127.0.0.1:8080/v1/tts
@@ -149,10 +145,10 @@ Docker:
 docker compose up --build refinery
 ```
 
-When the Refinery container talks to a Fish-Speech server running directly on your host:
+If the Refinery container needs to call Fish-Speech on your host machine, set:
 
 ```bash
-REFINERY_FISH_TTS_URL=http://host.docker.internal:8080/v1/tts
+FISH_TTS_URL=http://host.docker.internal:8080/v1/tts
 ```
 
 Open [http://localhost:5055](http://localhost:5055).

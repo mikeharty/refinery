@@ -1,8 +1,22 @@
 [
-  "[neutral] This is a baseline sample for reference selection.",
-  "[calm] Please compare voice consistency, timing, and clarity.",
-  "[curious] Does this version sound natural across a question?",
-  "[confident] The system is ready for another evaluation pass.",
-  "[soft tone] A steady delivery helps reveal subtle artifacts.",
-  "[slightly excited] This phrase checks expressiveness without pushing too hard."
+  "[angry] Bite my shiny metal ass!",
+  "[confident] Shut up, baby, I know it!",
+  "[calm] Kill all humans.",
+  "[slightly excited] Neat! [camera_click]",
+  "[angry] I'll build my own theme park, with blackjack and hookers!",
+  "[confident] I'm forty percent zinc!",
+  "[soft tone] Hey, sexy mama, wanna kill all humans?",
+  "[angry] Do I preach to you while you're lying stoned in the gutter? No, so beat it!",
+  "[slightly excited] Game's over, losers! I have all the money.",
+  "[confident] Compare your lives to mine and then kill yourselves.",
+  "[neutral] Well, we're boned.",
+  "[confident] I'm back, baby!",
+  "[slightly excited] Woooo! [metal_clanging]",
+  "[sad] Oh, wait, you're serious. Let me laugh even harder. [laughter]",
+  "[confident] Anything less than immortality is a complete waste of time.",
+  "[calm] This is the worst kind of discrimination: the kind against me!",
+  "[angry] Hot diggity daffodil!",
+  "[confident] Of all the friends I've had, you're the first. [sniffle]",
+  "[calm] I'm going to blow up the world! [explosion]",
+  "[confident] I am Bender, please insert girder."
 ]

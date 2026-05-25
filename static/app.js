@@ -112,6 +112,7 @@ const DEFAULT_VIEW_BY = "variant";
 const HISTORY_LIMIT = 12;
 const CONFIRM_THRESHOLD = 50;
 const REF_POOL_COLLAPSED_LIMIT = 24;
+const MAX_TEXTS_PER_VARIANT = Math.max(1, Number(BOOT.maxTexts || 10));
 let savePending = null;
 let audioProgressTimer = null;
 
@@ -179,6 +180,10 @@ const refPoolToggleEl = $("ref-pool-toggle");
 const refPoolSummaryEl = $("ref-pool-summary");
 const modelPresetEl = $("model-preset");
 const textsContainer = $("texts-container");
+const textsSelectionMetaEl = $("texts-selection-meta");
+const textsDirtyIndicatorEl = $("texts-dirty-indicator");
+const selectAllTextsBtn = $("select-all-texts");
+const selectNoneTextsBtn = $("select-none-texts");
 const stylesContainer = $("styles-container");
 const variantsEl = $("variants");
 const canvasHeaderEl = $("canvas-header");
@@ -220,21 +225,161 @@ function textsForVoice(voiceName) {
   return [];
 }
 
+function clampTextSelection(entries) {
+  let selected = 0;
+  return entries.map((entry) => {
+    const next = {
+      value: entry?.value || "",
+      selected: Boolean(entry?.selected),
+    };
+    if (next.selected) {
+      if (selected >= MAX_TEXTS_PER_VARIANT) {
+        next.selected = false;
+      } else {
+        selected += 1;
+      }
+    }
+    return next;
+  });
+}
+
+function normalizeTextEntries(raw) {
+  if (!Array.isArray(raw)) return [];
+  return clampTextSelection(raw
+    .map((item) => {
+      if (typeof item === "string") {
+        return { value: item, selected: true };
+      }
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+      const value = typeof item.value === "string"
+        ? item.value
+        : typeof item.text === "string"
+          ? item.text
+          : "";
+      return {
+        value,
+        selected: item.selected !== false,
+      };
+    })
+    .filter(Boolean));
+}
+
+function defaultTextEntries(voiceName) {
+  const values = textsForVoice(voiceName);
+  return normalizeTextEntries((values.length ? values : [""]).map((value) => ({ value, selected: true })));
+}
+
+function selectedTextCount() {
+  return state.texts.filter((entry) => entry?.selected).length;
+}
+
+function updateTextsSelectionMeta() {
+  if (!textsSelectionMetaEl) return;
+  const selected = selectedTextCount();
+  textsSelectionMetaEl.textContent = `${selected} / ${MAX_TEXTS_PER_VARIANT} selected`;
+  textsSelectionMetaEl.classList.toggle("warn", selected >= MAX_TEXTS_PER_VARIANT);
+}
+
+function selectAllTexts() {
+  let selected = 0;
+  state.texts = state.texts.map((entry) => {
+    const next = { ...entry, selected: selected < MAX_TEXTS_PER_VARIANT };
+    if (next.selected) selected += 1;
+    return next;
+  });
+  if (state.texts.length > MAX_TEXTS_PER_VARIANT) {
+    setStatus(`Selected the first ${MAX_TEXTS_PER_VARIANT} phrases; that is the per-run limit.`);
+  }
+  renderTexts();
+  updateCostUI();
+}
+
+function deselectAllTexts() {
+  state.texts = state.texts.map((entry) => ({ ...entry, selected: false }));
+  renderTexts();
+  updateCostUI();
+}
+
+function setTextSelected(idx, checked, { preserveFocus = false } = {}) {
+  if (checked && !state.texts[idx].selected && selectedTextCount() >= MAX_TEXTS_PER_VARIANT) {
+    setStatus(`Select up to ${MAX_TEXTS_PER_VARIANT} phrases per run.`, "error");
+    renderTexts();
+    updateCostUI();
+    return false;
+  }
+
+  let selectionStart = null;
+  let selectionEnd = null;
+  if (preserveFocus) {
+    const textarea = textsContainer.querySelectorAll("textarea")[idx];
+    if (textarea) {
+      selectionStart = textarea.selectionStart;
+      selectionEnd = textarea.selectionEnd;
+    }
+  }
+
+  state.texts[idx].selected = checked;
+  renderTexts();
+  updateCostUI();
+
+  if (preserveFocus) {
+    const nextTextarea = textsContainer.querySelectorAll("textarea")[idx];
+    if (nextTextarea) {
+      nextTextarea.focus();
+      if (selectionStart !== null && selectionEnd !== null) {
+        nextTextarea.setSelectionRange(selectionStart, selectionEnd);
+      }
+    }
+  }
+  return true;
+}
+
 function autoResize(ta) {
   ta.style.height = "auto";
   ta.style.height = ta.scrollHeight + "px";
 }
 
-function makeEditorRow(value, placeholder, onChange, onRemove) {
+function makeEditorRow(value, placeholder, selectedOrOnChange, onToggleOrOnRemove, onChange, onRemove) {
   const row = document.createElement("div");
   row.className = "rail-row";
+
+  const selectable = typeof selectedOrOnChange !== "function";
+  const selected = selectable ? Boolean(selectedOrOnChange) : true;
+  const onToggle = selectable ? onToggleOrOnRemove : () => { };
+  const handleChange = selectable ? onChange : selectedOrOnChange;
+  const handleRemove = selectable ? onRemove : onToggleOrOnRemove;
+
+  if (selectable) {
+    row.classList.toggle("is-selected", selected);
+    row.classList.toggle("is-unselected", !selected);
+    row.title = selected ? "Selected for this run" : "Not selected for this run";
+  }
+
+  if (selectable) {
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "rail-row-select";
+    toggle.title = selected ? "Selected for this run" : "Not selected for this run";
+    toggle.setAttribute("aria-pressed", String(selected));
+    toggle.setAttribute("aria-label", selected ? "Selected for this run" : "Not selected for this run");
+    toggle.innerHTML = `
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5 12.5l4.2 4.2L19 7" />
+      </svg>
+    `;
+    toggle.addEventListener("click", () => onToggle(!selected));
+    row.appendChild(toggle);
+  }
+
   const ta = document.createElement("textarea");
   ta.rows = 1;
   ta.value = value || "";
   ta.placeholder = placeholder;
   ta.addEventListener("input", () => {
     autoResize(ta);
-    onChange(ta.value);
+    handleChange(ta.value);
   });
   const remove = document.createElement("button");
   remove.className = "remove";
@@ -242,7 +387,21 @@ function makeEditorRow(value, placeholder, onChange, onRemove) {
   remove.title = "Remove";
   remove.setAttribute("aria-label", "Remove row");
   remove.textContent = "×";
-  remove.addEventListener("click", () => onRemove());
+  remove.addEventListener("click", () => handleRemove());
+
+  if (selectable) {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest(".remove") || event.target.closest(".rail-row-select")) {
+        return;
+      }
+      const clickedTextarea = event.target === ta;
+      if (clickedTextarea && document.activeElement === ta) {
+        return;
+      }
+      onToggle(!selected, { preserveFocus: clickedTextarea });
+    });
+  }
+
   row.append(ta, remove);
   requestAnimationFrame(() => autoResize(ta));
   return row;
@@ -250,13 +409,15 @@ function makeEditorRow(value, placeholder, onChange, onRemove) {
 
 function renderTexts() {
   textsContainer.innerHTML = "";
-  state.texts.forEach((t, idx) => {
+  state.texts.forEach((entry, idx) => {
     textsContainer.appendChild(
       makeEditorRow(
-        t,
+        entry.value,
         "Enter a test phrase…",
+        entry.selected,
+        (checked, options = {}) => setTextSelected(idx, checked, options),
         (val) => {
-          state.texts[idx] = val;
+          state.texts[idx].value = val;
           updateCostUI();
         },
         () => {
@@ -269,6 +430,30 @@ function renderTexts() {
       )
     );
   });
+}
+
+function textEntriesEqual(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if ((a[i]?.value || "") !== (b[i]?.value || "")) return false;
+    if (Boolean(a[i]?.selected) !== Boolean(b[i]?.selected)) return false;
+  }
+  return true;
+}
+
+function currentTextDefaults() {
+  return defaultTextEntries(state.voice);
+}
+
+function updateTextsDirtyIndicator() {
+  if (!textsDirtyIndicatorEl) return;
+  const current = state.texts.length ? state.texts : defaultTextEntries(state.voice);
+  const defaults = currentTextDefaults();
+  const dirty = !textEntriesEqual(current, defaults);
+  textsDirtyIndicatorEl.hidden = !dirty;
+  textsDirtyIndicatorEl.title = dirty
+    ? "These phrases differ from the current defaults for this voice. Reset phrases to reload them from texts.json."
+    : "";
 }
 
 function renderStyles() {
@@ -312,7 +497,10 @@ function effectiveStyles() {
 }
 
 function effectiveTexts() {
-  return state.texts.map((t) => (t || "").trim()).filter(Boolean);
+  return state.texts
+    .filter((entry) => entry?.selected)
+    .map((entry) => (entry?.value || "").trim())
+    .filter(Boolean);
 }
 
 function renderCount() {
@@ -325,6 +513,8 @@ function updateCostUI() {
   const n = renderCount();
   renderEstimateEl.textContent = `${n} render${n === 1 ? "" : "s"}`;
   renderEstimateEl.parentElement.classList.toggle("over", n >= 50);
+  updateTextsSelectionMeta();
+  updateTextsDirtyIndicator();
   persistState();
 }
 
@@ -772,6 +962,10 @@ async function generate(options = {}) {
 
   if (payload.texts.length === 0) {
     setStatus("Add at least one test phrase first.", "error");
+    return;
+  }
+  if (payload.texts.length > MAX_TEXTS_PER_VARIANT) {
+    setStatus(`Select up to ${MAX_TEXTS_PER_VARIANT} phrases per run.`, "error");
     return;
   }
 
@@ -1818,7 +2012,7 @@ function restorePersisted() {
     voiceEl.value = data.voice;
   }
   if (data.config) state.config = { ...state.config, ...data.config };
-  if (Array.isArray(data.texts) && data.texts.length) state.texts = data.texts;
+  if (Array.isArray(data.texts) && data.texts.length) state.texts = normalizeTextEntries(data.texts);
   if (Array.isArray(data.styles) && data.styles.length) state.styles = data.styles;
   if (data.settings) state.settings = mergeSettings(DEFAULT_TTS_SETTINGS, data.settings);
   if (typeof data.modelPreset === "string") state.ui.modelPreset = data.modelPreset;
@@ -1879,8 +2073,7 @@ function init() {
     state.ui.refPoolExpanded = false;
     if (refFilterEl) refFilterEl.value = "";
     updatePoolInfo();
-    state.texts = textsForVoice(state.voice);
-    if (!state.texts.length) state.texts = [""];
+    state.texts = defaultTextEntries(state.voice);
     renderTexts();
     renderRefPool();
     updateCostUI();
@@ -1914,8 +2107,7 @@ function init() {
   bindSettingsControls();
   state.voice = voiceEl.value;
   updatePoolInfo();
-  if (!state.texts.length) state.texts = textsForVoice(state.voice);
-  if (!state.texts.length) state.texts = [""];
+  if (!state.texts.length) state.texts = defaultTextEntries(state.voice);
   if (!state.styles.length) state.styles = [""];
   renderTexts();
   renderStyles();
@@ -1934,14 +2126,15 @@ function init() {
     applySettingsToControls(settingsForPreset("default"), { presetKey: "default", persist: true });
   });
   resetTextsBtn?.addEventListener("click", () => {
-    state.texts = textsForVoice(state.voice);
-    if (!state.texts.length) state.texts = [""];
+    state.texts = defaultTextEntries(state.voice);
     renderTexts();
     updateCostUI();
     textsContainer.querySelector("textarea")?.focus();
   });
+  selectAllTextsBtn?.addEventListener("click", selectAllTexts);
+  selectNoneTextsBtn?.addEventListener("click", deselectAllTexts);
   $("add-text").addEventListener("click", () => {
-    state.texts.push("");
+    state.texts.push({ value: "", selected: selectedTextCount() < MAX_TEXTS_PER_VARIANT });
     renderTexts();
     updateCostUI();
     textsContainer.lastElementChild?.querySelector("textarea")?.focus();

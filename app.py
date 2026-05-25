@@ -252,7 +252,7 @@ def normalize_tts_settings(raw: Optional[dict]) -> dict:
 
 
 def sanitize_texts(raw: Any) -> list[str]:
-    values = raw if isinstance(raw, list) else DEFAULT_TEXTS
+    values = raw if isinstance(raw, list) else DEFAULT_TEXTS[:MAX_TEXTS_PER_VARIANT]
     texts = []
     for item in values:
         if not isinstance(item, str):
@@ -260,8 +260,6 @@ def sanitize_texts(raw: Any) -> list[str]:
         text = item.strip()
         if text:
             texts.append(text[:MAX_TEXT_CHARS])
-        if len(texts) >= MAX_TEXTS_PER_VARIANT:
-            break
     return texts or DEFAULT_TEXTS[:MAX_TEXTS_PER_VARIANT]
 
 
@@ -593,6 +591,7 @@ async def index(request: Request):
             "texts_data": TEXTS_DATA,
             "max_refs": MAX_REFS_PER_VARIANT,
             "max_variants": MAX_VARIANTS,
+            "max_texts": MAX_TEXTS_PER_VARIANT,
             "default_tts_settings": DEFAULT_TTS_SETTINGS,
         },
     )
@@ -776,6 +775,11 @@ async def generate_variants(payload: dict):
     n_refs = _clamp_int(payload.get("n_refs"), 3, 1, MAX_REFS_PER_VARIANT)
     limit = _clamp_int(payload.get("limit"), 6, 1, MAX_VARIANTS)
     texts = sanitize_texts(payload.get("texts"))
+    if len(texts) > MAX_TEXTS_PER_VARIANT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Select {MAX_TEXTS_PER_VARIANT} phrases or fewer",
+        )
     styles = sanitize_styles(payload.get("styles"))
     settings = normalize_tts_settings(payload.get("settings"))
     ref_scores = sanitize_ref_scores(payload.get("ref_scores"))

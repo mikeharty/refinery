@@ -3,10 +3,10 @@ services:
     build:
       context: .
     ports:
-      - "127.0.0.1:${REFINERY_PORT:-5055}:5055"
+      - "0.0.0.0:${REFINERY_PORT:-5055}:5055"
     environment:
       REFERENCE_ROOT: /app/refs
-      FISH_TTS_URL: ${REFINERY_FISH_TTS_URL:-http://fish-speech:8080/v1/tts}
+      FISH_TTS_URL: ${FISH_TTS_URL:-http://fish-speech:8080/v1/tts}
       FISH_API_KEY: ${FISH_API_KEY:-}
       FISH_MODEL: ${FISH_MODEL:-s2-pro}
       FISH_TTS_TIMEOUT_SECONDS: ${FISH_TTS_TIMEOUT_SECONDS:-0}

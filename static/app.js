@@ -153,12 +153,12 @@ function persistState() {
         excluded: [...state.excluded],
         currentRound: state.round
           ? {
-              id: state.round.id,
-              voice: state.round.voice,
-              plans: state.round.plans,
-              settings: state.round.settings,
-              ratings: Object.fromEntries(state.ratings),
-            }
+            id: state.round.id,
+            voice: state.round.voice,
+            plans: state.round.plans,
+            settings: state.round.settings,
+            ratings: Object.fromEntries(state.ratings),
+          }
           : null,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -373,7 +373,7 @@ function makeEditorRow(
 
   const selectable = typeof selectedOrOnChange !== "function";
   const selected = selectable ? Boolean(selectedOrOnChange) : true;
-  const onToggle = selectable ? onToggleOrOnRemove : () => {};
+  const onToggle = selectable ? onToggleOrOnRemove : () => { };
   const handleChange = selectable ? onChange : selectedOrOnChange;
   const handleRemove = selectable ? onRemove : onToggleOrOnRemove;
 
@@ -935,7 +935,7 @@ function pumpFetchQueue() {
     refreshStopAllUI();
     item
       .task()
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         state.ui.activeFetches.delete(token);
         updateAudioProgressStatus();
@@ -1020,7 +1020,7 @@ async function generate(options = {}) {
   }
 
   const n = renderCount();
-  if (n >= CONFIRM_THRESHOLD) {
+  if (usesHostedFishAudio() && n >= CONFIRM_THRESHOLD) {
     const proceed = confirm(
       `This run will make ${n} TTS calls.\n\nIf your Fish endpoint is paid, that's real money. Cached renders are free, but the first time each (text × refs × settings) combo is rendered it's a real call.\n\nContinue?`
     );
@@ -1304,16 +1304,16 @@ async function fetchAudio(plan, sampleIndex, sample, ctx) {
       key,
       stopped
         ? {
-            status: "stopped",
-            startedAt,
-            endedAt: performance.now(),
-          }
+          status: "stopped",
+          startedAt,
+          endedAt: performance.now(),
+        }
         : {
-            status: "error",
-            error: err.name === "AbortError" ? "cancelled" : "error",
-            startedAt,
-            endedAt: performance.now(),
-          }
+          status: "error",
+          error: err.name === "AbortError" ? "cancelled" : "error",
+          startedAt,
+          endedAt: performance.now(),
+        }
     );
     updateCellStatus(plan.id, sampleIndex);
     updateAudioProgressStatus();
@@ -1936,6 +1936,10 @@ async function checkFishHealth({ silent = false } = {}) {
 
 function fishOk() {
   return state.fish.fish === "ok";
+}
+
+function usesHostedFishAudio() {
+  return state.fish.kind === "hosted";
 }
 
 function renderFishStatus() {

@@ -10,7 +10,13 @@ readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-keywords = ["fish-audio", "fish-speech", "tts", "voice-cloning", "speech-synthesis"]
+keywords = [
+    "fish-audio",
+    "fish-speech",
+    "tts",
+    "voice-cloning",
+    "speech-synthesis",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
@@ -27,10 +33,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "pytest>=9.0.3",
-    "ruff>=0.11.0",
-]
+dev = ["pytest>=9.0.3", "ruff>=0.11.0"]
 
 [tool.ruff]
 line-length = 88

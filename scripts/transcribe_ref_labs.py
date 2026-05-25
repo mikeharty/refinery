@@ -410,7 +410,9 @@ def maybe_move_rejected_targets(
         print("Not moving rejected files because stdin is not interactive.")
         return []
 
-    confirmation = input("Move rejected files now? Type 'y' to move, any other key to skip: ")
+    confirmation = input(
+        "Move rejected files now? Type 'y' to move, any other key to skip: "
+    )
     if confirmation.strip().lower() != "y":
         print("Skipped moving rejected files.")
         return []
@@ -649,7 +651,9 @@ def is_apple_silicon() -> bool:
     return platform.system() == "Darwin" and platform.machine() == "arm64"
 
 
-def resolve_provider(provider: str, *, whisper_command: str, api_key: str | None) -> str:
+def resolve_provider(
+    provider: str, *, whisper_command: str, api_key: str | None
+) -> str:
     if provider not in PROVIDERS:
         raise ValueError(f"Unknown transcription provider: {provider}")
     if provider != "auto":

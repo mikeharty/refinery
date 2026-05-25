@@ -49,7 +49,10 @@ def test_find_audio_targets_deduplicates_lab_when_multiple_extensions(
 
 
 def test_normalize_transcript_collapses_to_one_lab_line() -> None:
-    assert transcribe_ref_labs.normalize_transcript("  Hello,\n\tworld.  ") == "Hello, world."
+    assert (
+        transcribe_ref_labs.normalize_transcript("  Hello,\n\tworld.  ")
+        == "Hello, world."
+    )
 
 
 def test_resolve_auto_provider_prefers_mlx_on_apple_silicon(monkeypatch) -> None:
@@ -101,7 +104,9 @@ def test_resolve_auto_provider_falls_back_to_openai(monkeypatch) -> None:
     assert provider == "openai"
 
 
-def test_build_whisper_cli_command_includes_lab_friendly_options(tmp_path: Path) -> None:
+def test_build_whisper_cli_command_includes_lab_friendly_options(
+    tmp_path: Path,
+) -> None:
     audio_path = tmp_path / "clip.wav"
     output_dir = tmp_path / "out"
 
@@ -134,7 +139,9 @@ def test_build_whisper_cli_command_includes_lab_friendly_options(tmp_path: Path)
     ]
 
 
-def test_mlx_whisper_transcriber_uses_greedy_decoding(monkeypatch, tmp_path: Path) -> None:
+def test_mlx_whisper_transcriber_uses_greedy_decoding(
+    monkeypatch, tmp_path: Path
+) -> None:
     captured: dict[str, object] = {}
 
     def fake_transcribe(audio_path: str, **kwargs: object) -> dict[str, str]:

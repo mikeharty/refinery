@@ -30,6 +30,8 @@ Same speaker (the bundled public-domain LJSpeech voice), same phrase, same model
 
 Python 3.11+ with `uv` and/or Docker Compose.
 
+The preferred local Python workflow uses a project-local virtual environment at `.venv/`.
+
 ## Setup
 
 Clone and create a local env file:
@@ -39,6 +41,14 @@ git clone https://github.com/mikeharty/refinery.git
 cd refinery
 cp .env.example .env
 ```
+
+Create the local virtual environment and install dev dependencies:
+
+```bash
+uv sync --dev
+```
+
+VS Code is configured to use `.venv/bin/python` automatically.
 
 ## Configuration
 
@@ -135,7 +145,6 @@ The uninstaller removes only the project-local Fish-Speech install.
 Native:
 
 ```bash
-uv sync
 uv run uvicorn app:app --host 0.0.0.0 --port 5055 --reload
 ```
 
@@ -225,7 +234,11 @@ The underlying Python script still supports `--provider auto`, `--provider faste
 Edit `texts.json` or use the UI.
 
 ```json
-["Your first test phrase here.", "Another phrase to compare voices with.", "A third phrase for good measure."]
+[
+  "Your first test phrase here.",
+  "Another phrase to compare voices with.",
+  "A third phrase for good measure."
+]
 ```
 
 Keep phrase and style counts small when using a paid endpoint. Refinery renders every variant against every phrase/style combination.

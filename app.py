@@ -582,6 +582,15 @@ def choose_combinations(
 async def index(request: Request):
     voices = list_voices()
     voice_refs = {name: [r.wav.name for r in refs] for name, refs in voices.items()}
+    boot_payload = {
+        "voices": list(voices.keys()),
+        "voiceRefs": voice_refs,
+        "maxRefs": MAX_REFS_PER_VARIANT,
+        "maxVariants": MAX_VARIANTS,
+        "maxTexts": MAX_TEXTS_PER_VARIANT,
+        "textsData": TEXTS_DATA,
+        "defaultSettings": DEFAULT_TTS_SETTINGS,
+    }
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -593,6 +602,7 @@ async def index(request: Request):
             "max_variants": MAX_VARIANTS,
             "max_texts": MAX_TEXTS_PER_VARIANT,
             "default_tts_settings": DEFAULT_TTS_SETTINGS,
+            "boot_payload": boot_payload,
         },
     )
 

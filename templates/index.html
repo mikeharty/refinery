@@ -382,18 +382,8 @@
         </div>
     </template>
 
+    <script id="boot-data" type="application/json">{{ boot_payload | tojson }}</script>
     <script src="/static/wavesurfer.min.js"></script>
-    <script>
-        window.BOOT = {
-            voices: {{ voices.keys() | list | tojson }},
-            voiceRefs: {{ voice_refs | tojson }},
-            maxRefs: {{ max_refs }},
-            maxVariants: {{ max_variants }},
-            maxTexts: {{ max_texts }},
-            textsData: {{ texts_data | tojson }},
-            defaultSettings: {{ default_tts_settings | tojson }},
-        };
-    </script>
     <script src="/static/app.js"></script>
 </body>
 

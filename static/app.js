@@ -1,7 +1,10 @@
 // Refinery - A staged reference evaluation tool for TTS models, built on top of Fish-Speech.
 // (c) 2026 Mike Harty, licensed under MIT
 
-const BOOT = window.BOOT || {};
+const bootDataEl = document.getElementById("boot-data");
+const BOOT = bootDataEl?.textContent
+  ? JSON.parse(bootDataEl.textContent)
+  : window.BOOT || {};
 const DEFAULT_TTS_SETTINGS = structuredClone(BOOT.defaultSettings || {});
 const MODEL_PRESETS = {
   default: {},
@@ -69,7 +72,12 @@ const SETTINGS_CONTROL_IDS = Object.freeze([
   "condition_on_previous_chunks",
   "normalize_loudness",
 ]);
-const TWO_DECIMAL_SETTING_IDS = new Set(["temperature", "top_p", "repetition_penalty", "speed"]);
+const TWO_DECIMAL_SETTING_IDS = new Set([
+  "temperature",
+  "top_p",
+  "repetition_penalty",
+  "speed",
+]);
 let applyingSettings = false;
 
 // ─── State ────────────────────────────────────────────────
@@ -80,13 +88,13 @@ const state = {
   texts: [],
   styles: [""],
   settings: structuredClone(DEFAULT_TTS_SETTINGS),
-  round: null,        // { id, voice, plans, settings, samples }
+  round: null, // { id, voice, plans, settings, samples }
   ratings: new Map(), // cellKey -> -1 | 0 | 1
-  audio: new Map(),   // cellKey -> { status, blobUrl?, cacheState?, error? }
+  audio: new Map(), // cellKey -> { status, blobUrl?, cacheState?, error? }
   players: new Map(), // cellKey -> WaveSurfer instance
-  history: [],        // [{ id, voice, plans, settings, ratings, ts, summary }]
-  pinned: new Set(),  // ref names hard-included in next gen
-  excluded: new Set(),// ref names hard-excluded in next gen
+  history: [], // [{ id, voice, plans, settings, ratings, ts, summary }]
+  pinned: new Set(), // ref names hard-included in next gen
+  excluded: new Set(), // ref names hard-excluded in next gen
   fish: { fish: "checking", url: "", kind: "" },
   ui: {
     fetchQueue: [],
@@ -112,7 +120,7 @@ const DEFAULT_VIEW_BY = "variant";
 const HISTORY_LIMIT = 12;
 const CONFIRM_THRESHOLD = 50;
 const REF_POOL_COLLAPSED_LIMIT = 24;
-const MAX_TEXTS_PER_VARIANT = Math.max(1, Number(BOOT.maxTexts || 10));
+const MAX_TEXTS_PER_VARIANT = Math.max(1, Number(BOOT.maxTexts || 8));
 let savePending = null;
 let audioProgressTimer = null;
 
@@ -145,12 +153,12 @@ function persistState() {
         excluded: [...state.excluded],
         currentRound: state.round
           ? {
-            id: state.round.id,
-            voice: state.round.voice,
-            plans: state.round.plans,
-            settings: state.round.settings,
-            ratings: Object.fromEntries(state.ratings),
-          }
+              id: state.round.id,
+              voice: state.round.voice,
+              plans: state.round.plans,
+              settings: state.round.settings,
+              ratings: Object.fromEntries(state.ratings),
+            }
           : null,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -245,30 +253,35 @@ function clampTextSelection(entries) {
 
 function normalizeTextEntries(raw) {
   if (!Array.isArray(raw)) return [];
-  return clampTextSelection(raw
-    .map((item) => {
-      if (typeof item === "string") {
-        return { value: item, selected: true };
-      }
-      if (!item || typeof item !== "object") {
-        return null;
-      }
-      const value = typeof item.value === "string"
-        ? item.value
-        : typeof item.text === "string"
-          ? item.text
-          : "";
-      return {
-        value,
-        selected: item.selected !== false,
-      };
-    })
-    .filter(Boolean));
+  return clampTextSelection(
+    raw
+      .map((item) => {
+        if (typeof item === "string") {
+          return { value: item, selected: true };
+        }
+        if (!item || typeof item !== "object") {
+          return null;
+        }
+        const value =
+          typeof item.value === "string"
+            ? item.value
+            : typeof item.text === "string"
+              ? item.text
+              : "";
+        return {
+          value,
+          selected: item.selected !== false,
+        };
+      })
+      .filter(Boolean)
+  );
 }
 
 function defaultTextEntries(voiceName) {
   const values = textsForVoice(voiceName);
-  return normalizeTextEntries((values.length ? values : [""]).map((value) => ({ value, selected: true })));
+  return normalizeTextEntries(
+    (values.length ? values : [""]).map((value) => ({ value, selected: true }))
+  );
 }
 
 function selectedTextCount() {
@@ -290,7 +303,9 @@ function selectAllTexts() {
     return next;
   });
   if (state.texts.length > MAX_TEXTS_PER_VARIANT) {
-    setStatus(`Selected the first ${MAX_TEXTS_PER_VARIANT} phrases; that is the per-run limit.`);
+    setStatus(
+      `Selected the first ${MAX_TEXTS_PER_VARIANT} phrases; that is the per-run limit.`
+    );
   }
   renderTexts();
   updateCostUI();
@@ -303,7 +318,11 @@ function deselectAllTexts() {
 }
 
 function setTextSelected(idx, checked, { preserveFocus = false } = {}) {
-  if (checked && !state.texts[idx].selected && selectedTextCount() >= MAX_TEXTS_PER_VARIANT) {
+  if (
+    checked &&
+    !state.texts[idx].selected &&
+    selectedTextCount() >= MAX_TEXTS_PER_VARIANT
+  ) {
     setStatus(`Select up to ${MAX_TEXTS_PER_VARIANT} phrases per run.`, "error");
     renderTexts();
     updateCostUI();
@@ -341,13 +360,20 @@ function autoResize(ta) {
   ta.style.height = ta.scrollHeight + "px";
 }
 
-function makeEditorRow(value, placeholder, selectedOrOnChange, onToggleOrOnRemove, onChange, onRemove) {
+function makeEditorRow(
+  value,
+  placeholder,
+  selectedOrOnChange,
+  onToggleOrOnRemove,
+  onChange,
+  onRemove
+) {
   const row = document.createElement("div");
   row.className = "rail-row";
 
   const selectable = typeof selectedOrOnChange !== "function";
   const selected = selectable ? Boolean(selectedOrOnChange) : true;
-  const onToggle = selectable ? onToggleOrOnRemove : () => { };
+  const onToggle = selectable ? onToggleOrOnRemove : () => {};
   const handleChange = selectable ? onChange : selectedOrOnChange;
   const handleRemove = selectable ? onRemove : onToggleOrOnRemove;
 
@@ -363,7 +389,10 @@ function makeEditorRow(value, placeholder, selectedOrOnChange, onToggleOrOnRemov
     toggle.className = "rail-row-select";
     toggle.title = selected ? "Selected for this run" : "Not selected for this run";
     toggle.setAttribute("aria-pressed", String(selected));
-    toggle.setAttribute("aria-label", selected ? "Selected for this run" : "Not selected for this run");
+    toggle.setAttribute(
+      "aria-label",
+      selected ? "Selected for this run" : "Not selected for this run"
+    );
     toggle.innerHTML = `
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M5 12.5l4.2 4.2L19 7" />
@@ -534,7 +563,10 @@ function mergeSettings(base, patch = {}) {
 }
 
 function settingsForPreset(key) {
-  return mergeSettings(DEFAULT_TTS_SETTINGS, MODEL_PRESETS[key] || MODEL_PRESETS.default);
+  return mergeSettings(
+    DEFAULT_TTS_SETTINGS,
+    MODEL_PRESETS[key] || MODEL_PRESETS.default
+  );
 }
 
 function formatSettingValue(id, value) {
@@ -604,9 +636,16 @@ function bindRange(id, formatter, onChange) {
 
 function applySettingsToControls(settings, { presetKey = null, persist = false } = {}) {
   const d = mergeSettings(DEFAULT_TTS_SETTINGS, settings);
-  const setVal = (id, value) => { const el = $(id); if (el && value != null) el.value = value; };
-  const setChk = (id, value) => { const el = $(id); if (el) el.checked = Boolean(value); };
-  const knownPreset = presetKey && (MODEL_PRESET_KEYS.includes(presetKey) || presetKey === "custom");
+  const setVal = (id, value) => {
+    const el = $(id);
+    if (el && value != null) el.value = value;
+  };
+  const setChk = (id, value) => {
+    const el = $(id);
+    if (el) el.checked = Boolean(value);
+  };
+  const knownPreset =
+    presetKey && (MODEL_PRESET_KEYS.includes(presetKey) || presetKey === "custom");
   applyingSettings = true;
   try {
     setVal("model", d.model);
@@ -644,7 +683,9 @@ function bindSettingsControls() {
     const el = $(id);
     if (!el) return;
     const eventName = el.type === "range" ? "input" : "change";
-    el.addEventListener(eventName, () => syncSettingsFromControls({ presetKey: "custom" }));
+    el.addEventListener(eventName, () =>
+      syncSettingsFromControls({ presetKey: "custom" })
+    );
   });
 }
 
@@ -690,7 +731,8 @@ function renderRefPool() {
     return -(scores[name] || 0);
   };
   const sorted = refs.slice().sort((a, b) => {
-    const ka = sortKey(a), kb = sortKey(b);
+    const ka = sortKey(a),
+      kb = sortKey(b);
     if (ka !== kb) return ka - kb;
     return a.localeCompare(b);
   });
@@ -698,8 +740,11 @@ function renderRefPool() {
   const filtered = query
     ? sorted.filter((name) => name.toLowerCase().includes(query))
     : sorted;
-  const shouldCollapse = !state.ui.refPoolExpanded && !query && filtered.length > REF_POOL_COLLAPSED_LIMIT;
-  const visible = shouldCollapse ? filtered.slice(0, REF_POOL_COLLAPSED_LIMIT) : filtered;
+  const shouldCollapse =
+    !state.ui.refPoolExpanded && !query && filtered.length > REF_POOL_COLLAPSED_LIMIT;
+  const visible = shouldCollapse
+    ? filtered.slice(0, REF_POOL_COLLAPSED_LIMIT)
+    : filtered;
   for (const name of visible) {
     const score = scores[name] || 0;
     const isPinned = state.pinned.has(name);
@@ -733,7 +778,9 @@ function renderRefPool() {
         return;
       }
       previewRef(name);
-      poolEl.querySelectorAll(".pool-row.playing").forEach((r) => r.classList.remove("playing"));
+      poolEl
+        .querySelectorAll(".pool-row.playing")
+        .forEach((r) => r.classList.remove("playing"));
       row.classList.add("playing");
     });
     row.addEventListener("contextmenu", (e) => {
@@ -886,8 +933,9 @@ function pumpFetchQueue() {
     const token = Symbol("audio-fetch");
     state.ui.activeFetches.add(token);
     refreshStopAllUI();
-    item.task()
-      .catch(() => { })
+    item
+      .task()
+      .catch(() => {})
       .finally(() => {
         state.ui.activeFetches.delete(token);
         updateAudioProgressStatus();
@@ -935,7 +983,9 @@ function stopAllGeneration({ silent = false } = {}) {
   }
   refreshStopAllUI();
   if (!silent) {
-    setStatus(stopped ? `Stopped ${stopped} pending render${stopped === 1 ? "" : "s"}.` : "");
+    setStatus(
+      stopped ? `Stopped ${stopped} pending render${stopped === 1 ? "" : "s"}.` : ""
+    );
   }
 }
 
@@ -1060,8 +1110,14 @@ async function generate(options = {}) {
 
 function setStatus(text, kind = "") {
   const cls = "canvas-status " + kind;
-  if (canvasStatusEl) { canvasStatusEl.textContent = text || ""; canvasStatusEl.className = cls; }
-  if (canvasStatusBareEl) { canvasStatusBareEl.textContent = text || ""; canvasStatusBareEl.className = cls; }
+  if (canvasStatusEl) {
+    canvasStatusEl.textContent = text || "";
+    canvasStatusEl.className = cls;
+  }
+  if (canvasStatusBareEl) {
+    canvasStatusBareEl.textContent = text || "";
+    canvasStatusBareEl.className = cls;
+  }
 }
 
 function totalAudioCells(plans) {
@@ -1150,7 +1206,9 @@ function updateAudioProgressStatus() {
       summary.cached ? `${summary.cached} cached` : "",
       summary.error ? `${summary.error} failed` : "",
       summary.stopped ? `${summary.stopped} stopped` : "",
-    ].filter(Boolean).join(" · ");
+    ]
+      .filter(Boolean)
+      .join(" · ");
     stopAudioProgress({ clearStatus: false });
     setStatus(
       `${progress.verb} complete: ${summary.completed}/${summary.total} in ${formatDurationMs(summary.elapsedMs)}${suffix ? ` · ${suffix}` : ""}`,
@@ -1242,18 +1300,21 @@ async function fetchAudio(plan, sampleIndex, sample, ctx) {
   } catch (err) {
     if (!isAudioContextCurrent(ctx)) return;
     const stopped = ac.signal.aborted && ac.signal.reason === "stopped";
-    state.audio.set(key, stopped
-      ? {
-        status: "stopped",
-        startedAt,
-        endedAt: performance.now(),
-      }
-      : {
-        status: "error",
-        error: err.name === "AbortError" ? "cancelled" : "error",
-        startedAt,
-        endedAt: performance.now(),
-      });
+    state.audio.set(
+      key,
+      stopped
+        ? {
+            status: "stopped",
+            startedAt,
+            endedAt: performance.now(),
+          }
+        : {
+            status: "error",
+            error: err.name === "AbortError" ? "cancelled" : "error",
+            startedAt,
+            endedAt: performance.now(),
+          }
+    );
     updateCellStatus(plan.id, sampleIndex);
     updateAudioProgressStatus();
   } finally {
@@ -1313,12 +1374,14 @@ function renderByPhrase() {
     });
   }
   for (const [phrase, cells] of groups) {
-    variantsEl.appendChild(buildGroupNode({
-      title: phrase,
-      labelTag: "phrase",
-      cells,
-      cellShows: ["variant", "style"],
-    }));
+    variantsEl.appendChild(
+      buildGroupNode({
+        title: phrase,
+        labelTag: "phrase",
+        cells,
+        cellShows: ["variant", "style"],
+      })
+    );
   }
 }
 
@@ -1332,12 +1395,14 @@ function renderByStyle() {
     });
   }
   for (const [style, cells] of groups) {
-    variantsEl.appendChild(buildGroupNode({
-      title: style,
-      labelTag: "style",
-      cells,
-      cellShows: ["variant", "phrase"],
-    }));
+    variantsEl.appendChild(
+      buildGroupNode({
+        title: style,
+        labelTag: "style",
+        cells,
+        cellShows: ["variant", "phrase"],
+      })
+    );
   }
 }
 
@@ -1420,7 +1485,11 @@ function buildCellNode(plan, sampleIndex, sample, cellShows = ["style", "phrase"
     if (axis === "variant") {
       tokens.push({ kind: "variant", value: `#${plan.id}`, refs: plan.ref_names });
     } else if (axis === "style") {
-      tokens.push({ kind: "style", value: sample.style || "baseline", baseline: !sample.style });
+      tokens.push({
+        kind: "style",
+        value: sample.style || "baseline",
+        baseline: !sample.style,
+      });
     } else if (axis === "phrase") {
       tokens.push({ kind: "phrase", value: sample.base_text || sample.text });
     }
@@ -1442,7 +1511,10 @@ function buildCellNode(plan, sampleIndex, sample, cellShows = ["style", "phrase"
         pill.className = "ref-pill ref-pill-mini";
         pill.textContent = name;
         pill.title = `Preview ${name}`;
-        pill.addEventListener("click", (e) => { e.stopPropagation(); previewRef(name); });
+        pill.addEventListener("click", (e) => {
+          e.stopPropagation();
+          previewRef(name);
+        });
         refsLine.appendChild(pill);
       }
       metaEl.appendChild(refsLine);
@@ -1504,7 +1576,8 @@ function togglePlay(key) {
   for (const [otherKey, other] of state.players) {
     if (otherKey !== key && other?.isPlaying?.()) other.pause();
   }
-  if (ws.isPlaying()) ws.pause(); else ws.play();
+  if (ws.isPlaying()) ws.pause();
+  else ws.play();
 }
 
 function attachPlayer(planId, sampleIndex) {
@@ -1556,7 +1629,11 @@ function attachPlayer(planId, sampleIndex) {
 
 function destroyPlayers() {
   for (const ws of state.players.values()) {
-    try { ws.destroy(); } catch (e) { /* ignore */ }
+    try {
+      ws.destroy();
+    } catch (e) {
+      /* ignore */
+    }
   }
   state.players.clear();
 }
@@ -1590,12 +1667,18 @@ function updateCellStatus(planId, sampleIndex) {
   const loadingText = entry.startedAt
     ? `loading ${formatDurationMs(performance.now() - entry.startedAt)}`
     : "loading…";
-  statusEl.textContent = entry.status === "cached" ? "cached"
-    : entry.status === "ready" ? "ready"
-      : entry.status === "error" ? (entry.error || "error")
-        : entry.status === "loading" ? loadingText
-          : entry.status === "stopped" ? "stopped"
-            : "queued";
+  statusEl.textContent =
+    entry.status === "cached"
+      ? "cached"
+      : entry.status === "ready"
+        ? "ready"
+        : entry.status === "error"
+          ? entry.error || "error"
+          : entry.status === "loading"
+            ? loadingText
+            : entry.status === "stopped"
+              ? "stopped"
+              : "queued";
   statusEl.className = "cell-status " + entry.status;
 
   if (entry.status === "loading") {
@@ -1755,7 +1838,11 @@ function friendlyAgo(ts) {
 
 function restoreRound(entry) {
   const cells = entry.plans.length * (entry.plans[0]?.samples?.length || 0);
-  if (!confirm(`Restore round ${entry.id}? Audio isn't stored, so this will re-render ${cells} cells.`)) {
+  if (
+    !confirm(
+      `Restore round ${entry.id}? Audio isn't stored, so this will re-render ${cells} cells.`
+    )
+  ) {
     return;
   }
   // Save current round to history if it exists.
@@ -1783,7 +1870,9 @@ function restoreRound(entry) {
     plans: entry.plans,
     settings: entry.settings,
   };
-  state.ratings = new Map(Object.entries(entry.ratings || {}).map(([k, v]) => [k, Number(v)]));
+  state.ratings = new Map(
+    Object.entries(entry.ratings || {}).map(([k, v]) => [k, Number(v)])
+  );
   abortAudioFetches();
   destroyPlayers();
   for (const [, audioEntry] of state.audio) {
@@ -1833,13 +1922,21 @@ async function checkFishHealth({ silent = false } = {}) {
   renderFishStatus();
   // Poll while not ok; stop polling when healthy.
   if (state.fish.fish === "ok") {
-    if (healthPollTimer) { clearInterval(healthPollTimer); healthPollTimer = null; }
+    if (healthPollTimer) {
+      clearInterval(healthPollTimer);
+      healthPollTimer = null;
+    }
   } else if (!healthPollTimer && !silent) {
-    healthPollTimer = setInterval(() => checkFishHealth({ silent: true }), HEALTH_POLL_MS);
+    healthPollTimer = setInterval(
+      () => checkFishHealth({ silent: true }),
+      HEALTH_POLL_MS
+    );
   }
 }
 
-function fishOk() { return state.fish.fish === "ok"; }
+function fishOk() {
+  return state.fish.fish === "ok";
+}
 
 function renderFishStatus() {
   const dot = $("fish-dot");
@@ -1854,11 +1951,15 @@ function renderFishStatus() {
 
 function fishStatusTitle() {
   switch (state.fish.fish) {
-    case "ok": return `Fish-Speech reachable at ${state.fish.url}`;
-    case "offline": return `Fish-Speech offline — ${state.fish.url}`;
-    case "unauthorized": return `Fish-Speech reachable but rejected the request (check API key)`;
+    case "ok":
+      return `Fish-Speech reachable at ${state.fish.url}`;
+    case "offline":
+      return `Fish-Speech offline — ${state.fish.url}`;
+    case "unauthorized":
+      return `Fish-Speech reachable but rejected the request (check API key)`;
     case "checking":
-    default: return "Checking Fish-Speech…";
+    default:
+      return "Checking Fish-Speech…";
   }
 }
 
@@ -1873,38 +1974,58 @@ function renderSetupCard() {
     return;
   }
   card.hidden = false;
-  card.className = "setup-card kind-" + (f.fish === "unauthorized" ? "unauthorized" : "offline");
+  card.className =
+    "setup-card kind-" + (f.fish === "unauthorized" ? "unauthorized" : "offline");
 
   const url = f.url || "the configured endpoint";
   const isLocal = f.kind === "local";
   const isHosted = f.kind === "hosted";
   const hasKey = !!f.has_key;
-  const codeBlock = (value) => `<code class="setup-code-block">${escapeHTML(value)}</code>`;
+  const codeBlock = (value) =>
+    `<code class="setup-code-block">${escapeHTML(value)}</code>`;
 
-  const title = f.fish === "unauthorized"
-    ? "Fish endpoint rejected the request"
-    : "Fish-Speech isn't reachable";
+  const title =
+    f.fish === "unauthorized"
+      ? "Fish endpoint rejected the request"
+      : "Fish-Speech isn't reachable";
 
   const tagText = f.fish === "unauthorized" ? "401 / 403" : "offline";
 
   const steps = [];
   if (f.fish === "unauthorized") {
-    steps.push(`Confirm <code>FISH_API_KEY</code> in <code>.env</code> matches your account.`);
+    steps.push(
+      `Confirm <code>FISH_API_KEY</code> in <code>.env</code> matches your account.`
+    );
     if (isHosted) {
-      steps.push(`Verify the key has access to model <code>${escapeHTML(f.model || "s2-pro")}</code>.`);
+      steps.push(
+        `Verify the key has access to model <code>${escapeHTML(f.model || "s2-pro")}</code>.`
+      );
     }
     steps.push(`Restart Refinery so the new key is picked up.`);
   } else if (isLocal) {
-    steps.push(`Start the Fish-Speech API server. On macOS:${codeBlock("scripts/start-fish-macos.sh")}`);
-    steps.push(`On Linux + CUDA:${codeBlock("docker compose --profile fish up")}See README for details.`);
-    steps.push(`Or point Refinery at the hosted API by setting <code>FISH_TTS_URL</code> and <code>FISH_API_KEY</code> in <code>.env</code>, then restart.`);
+    steps.push(
+      `Start the Fish-Speech API server. On macOS:${codeBlock("scripts/start-fish-macos.sh")}`
+    );
+    steps.push(
+      `On Linux + CUDA:${codeBlock("docker compose --profile fish up")}See README for details.`
+    );
+    steps.push(
+      `Or point Refinery at the hosted API by setting <code>FISH_TTS_URL</code> and <code>FISH_API_KEY</code> in <code>.env</code>, then restart.`
+    );
   } else if (isHosted) {
     steps.push(`Check your network. Refinery couldn't reach:${codeBlock(url)}`);
-    if (!hasKey) steps.push(`Set <code>FISH_API_KEY</code> in <code>.env</code> and restart Refinery.`);
-    steps.push(`If the hosted API is degraded, fall back to a local Fish-Speech and update <code>FISH_TTS_URL</code>.`);
+    if (!hasKey)
+      steps.push(
+        `Set <code>FISH_API_KEY</code> in <code>.env</code> and restart Refinery.`
+      );
+    steps.push(
+      `If the hosted API is degraded, fall back to a local Fish-Speech and update <code>FISH_TTS_URL</code>.`
+    );
   } else {
     steps.push(`Refinery couldn't reach:${codeBlock(url)}`);
-    steps.push("Confirm the configured endpoint, start the server, and check local network or firewall rules.");
+    steps.push(
+      "Confirm the configured endpoint, start the server, and check local network or firewall rules."
+    );
   }
 
   card.innerHTML = `
@@ -1932,12 +2053,17 @@ function renderSetupCard() {
   card.querySelector("#recheck-fish")?.addEventListener("click", () => {
     const dot = $("fish-dot");
     if (dot) dot.dataset.state = "checking";
-    fetch("/api/health?refresh=1", { cache: "no-store" }).finally(() => checkFishHealth({ silent: true }));
+    fetch("/api/health?refresh=1", { cache: "no-store" }).finally(() =>
+      checkFishHealth({ silent: true })
+    );
   });
 }
 
 function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+  );
 }
 
 // ─── Keyboard ─────────────────────────────────────────────
@@ -1991,15 +2117,34 @@ function handleKeydown(e) {
   if (e.metaKey || e.ctrlKey) return;
   const k = e.key;
   const kl = k.toLowerCase();
-  if (kl === "g" && !e.altKey) { e.preventDefault(); if (!generateBtn.disabled) generateBtn.click(); }
-  else if (kl === "r" && !e.altKey) { e.preventDefault(); if (!refineBtn.disabled) refineBtn.click(); }
-  else if (kl === "s" && !e.altKey) { e.preventDefault(); if (!saveWinnerBtn.disabled) saveWinnerBtn.click(); }
-  else if (k === " " || k === "Spacebar") { e.preventDefault(); togglePlayFocused(); }
-  else if (k === "1") { e.preventDefault(); rateFocused(1); }
-  else if (k === "2") { e.preventDefault(); rateFocused(0); }
-  else if (k === "3") { e.preventDefault(); rateFocused(-1); }
-  else if (k === "ArrowDown" || k === "ArrowRight") { e.preventDefault(); moveCellFocus(1); }
-  else if (k === "ArrowUp" || k === "ArrowLeft") { e.preventDefault(); moveCellFocus(-1); }
+  if (kl === "g" && !e.altKey) {
+    e.preventDefault();
+    if (!generateBtn.disabled) generateBtn.click();
+  } else if (kl === "r" && !e.altKey) {
+    e.preventDefault();
+    if (!refineBtn.disabled) refineBtn.click();
+  } else if (kl === "s" && !e.altKey) {
+    e.preventDefault();
+    if (!saveWinnerBtn.disabled) saveWinnerBtn.click();
+  } else if (k === " " || k === "Spacebar") {
+    e.preventDefault();
+    togglePlayFocused();
+  } else if (k === "1") {
+    e.preventDefault();
+    rateFocused(1);
+  } else if (k === "2") {
+    e.preventDefault();
+    rateFocused(0);
+  } else if (k === "3") {
+    e.preventDefault();
+    rateFocused(-1);
+  } else if (k === "ArrowDown" || k === "ArrowRight") {
+    e.preventDefault();
+    moveCellFocus(1);
+  } else if (k === "ArrowUp" || k === "ArrowLeft") {
+    e.preventDefault();
+    moveCellFocus(-1);
+  }
 }
 
 // ─── Boot ─────────────────────────────────────────────────
@@ -2012,15 +2157,16 @@ function restorePersisted() {
     voiceEl.value = data.voice;
   }
   if (data.config) state.config = { ...state.config, ...data.config };
-  if (Array.isArray(data.texts) && data.texts.length) state.texts = normalizeTextEntries(data.texts);
+  if (Array.isArray(data.texts) && data.texts.length)
+    state.texts = normalizeTextEntries(data.texts);
   if (Array.isArray(data.styles) && data.styles.length) state.styles = data.styles;
-  if (data.settings) state.settings = mergeSettings(DEFAULT_TTS_SETTINGS, data.settings);
+  if (data.settings)
+    state.settings = mergeSettings(DEFAULT_TTS_SETTINGS, data.settings);
   if (typeof data.modelPreset === "string") state.ui.modelPreset = data.modelPreset;
   if (data.viewBy) {
     const migratedDefault = localStorage.getItem(VIEW_DEFAULT_MIGRATION_KEY) === "1";
-    state.ui.viewBy = !migratedDefault && data.viewBy === "phrase"
-      ? DEFAULT_VIEW_BY
-      : data.viewBy;
+    state.ui.viewBy =
+      !migratedDefault && data.viewBy === "phrase" ? DEFAULT_VIEW_BY : data.viewBy;
     localStorage.setItem(VIEW_DEFAULT_MIGRATION_KEY, "1");
   }
   if (Number.isFinite(data.roundCounter)) state.roundCounter = data.roundCounter;
@@ -2089,8 +2235,22 @@ function init() {
     renderRefPool();
   });
 
-  bindRange("n_refs", (v) => String(v), (v) => { state.config.nRefs = Number(v); updateCostUI(); });
-  bindRange("limit", (v) => String(v), (v) => { state.config.limit = Number(v); updateCostUI(); });
+  bindRange(
+    "n_refs",
+    (v) => String(v),
+    (v) => {
+      state.config.nRefs = Number(v);
+      updateCostUI();
+    }
+  );
+  bindRange(
+    "limit",
+    (v) => String(v),
+    (v) => {
+      state.config.limit = Number(v);
+      updateCostUI();
+    }
+  );
 
   // generation settings
   const fmt2 = (v) => Number(v).toFixed(2);
@@ -2123,7 +2283,10 @@ function init() {
     applySettingsToControls(settingsForPreset(key), { presetKey: key, persist: true });
   });
   resetSettingsBtn?.addEventListener("click", () => {
-    applySettingsToControls(settingsForPreset("default"), { presetKey: "default", persist: true });
+    applySettingsToControls(settingsForPreset("default"), {
+      presetKey: "default",
+      persist: true,
+    });
   });
   resetTextsBtn?.addEventListener("click", () => {
     state.texts = defaultTextEntries(state.voice);
@@ -2134,7 +2297,10 @@ function init() {
   selectAllTextsBtn?.addEventListener("click", selectAllTexts);
   selectNoneTextsBtn?.addEventListener("click", deselectAllTexts);
   $("add-text").addEventListener("click", () => {
-    state.texts.push({ value: "", selected: selectedTextCount() < MAX_TEXTS_PER_VARIANT });
+    state.texts.push({
+      value: "",
+      selected: selectedTextCount() < MAX_TEXTS_PER_VARIANT,
+    });
     renderTexts();
     updateCostUI();
     textsContainer.lastElementChild?.querySelector("textarea")?.focus();

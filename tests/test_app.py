@@ -88,7 +88,9 @@ def test_variants_generate_sanitized_plans() -> None:
     body = response.json()
     assert body["voice"] == voice
     assert 1 <= len(body["plans"]) <= app.MAX_VARIANTS
-    assert all(len(plan["ref_names"]) <= app.MAX_REFS_PER_VARIANT for plan in body["plans"])
+    assert all(
+        len(plan["ref_names"]) <= app.MAX_REFS_PER_VARIANT for plan in body["plans"]
+    )
     assert body["plans"][0]["samples"] == [
         {
             "style": "",
@@ -107,7 +109,10 @@ def test_variants_generate_sanitized_plans() -> None:
 
 def test_build_samples_extracts_phrase_tags_without_speaking_them() -> None:
     samples = app.build_samples(
-        ["[neutral] This should not start with neutral.", "[soft tone] [tired] Keep it low."],
+        [
+            "[neutral] This should not start with neutral.",
+            "[soft tone] [tired] Keep it low.",
+        ],
         [""],
     )
 
